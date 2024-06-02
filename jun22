@@ -1,0 +1,138 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity Counter is
+    generic (
+        n : integer := 10
+    );
+    port (
+        clk   : in  std_logic;
+        CE    : in  std_logic; 
+        WR    : in  std_logic; 
+        SMER  : in  std_logic; 
+        Din   : in  integer range 0 to n-1; 
+        Q     : out integer range 0 to n-1;
+    );
+end Counter;
+
+architecture Behavioral of Counter is
+    signal count : integer range 0 to n-1 := 0;
+begin
+    process(clk)
+    begin
+        if rising_edge(clk) then
+            if WR = '1' and CE = '0' then
+                count <= Din;
+            elsif CE = '1' then
+                if SMER = '1' then
+                    if count = n-1 then
+                        count <= Din;
+                    else
+                        count <= count + 1;
+                    end if;
+                else
+                    if count = 0 then
+                        count <= Din;
+                    else
+                        count <= count - 1;
+                    end if;
+                end if;
+            end if;
+        end if;
+    end process;
+
+    Q <= count;
+end Behavioral;
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity tb_Counter is
+end tb_Counter;
+
+architecture Behavioral of tb_Counter is
+    signal clk   : std_logic := '0';
+    signal CE    : std_logic := '0';
+    signal WR    : std_logic := '0';
+    signal SMER  : std_logic := '0';
+    signal Din   : integer := 0;
+    signal Q     : integer;
+    
+    constant n : integer := 10;
+    
+    -- Instanciranje brojača
+    component Counter
+        generic (
+            n : integer
+        );
+        port (
+            clk   : in  std_logic;
+            CE    : in  std_logic;
+            WR    : in  std_logic;
+            SMER  : in  std_logic;
+            Din   : in  integer range 0 to n-1;
+            Q     : out integer range 0 to n-1
+        );
+    end component;
+
+begin
+    UUT: Counter
+        generic map (
+            n => n
+        )
+        port map (
+            clk => clk,
+            CE  => CE,
+            WR  => WR,
+            SMER => SMER,
+            Din => Din,
+            Q   => Q
+        );
+
+    -- Generisanje takta
+    clk_process : process
+    begin
+        while True loop
+            clk <= '0';
+            wait for 10 ns;
+            clk <= '1';
+            wait for 10 ns;
+        end loop;
+    end process;
+
+    -- Test stimulusi
+    stimulus : process
+    begin
+        -- Reset
+        CE <= '0'; WR <= '0'; SMER <= '0'; Din <= 0;
+        wait for 20 ns;
+        
+        -- Paralelni upis
+        WR <= '1'; CE <= '0'; Din <= 5;
+        wait for 20 ns;
+        WR <= '0';
+        
+        -- Brojanje naviše
+        CE <= '1'; SMER <= '1';
+        wait for 100 ns;
+        
+        -- Brojanje naniže
+        SMER <= '0';
+        wait for 100 ns;
+        
+        -- Testiranje prelaska na Din vrednost
+        SMER <= '1';
+        wait for 200 ns;
+        
+        -- Paralelni upis dok je CE = '1' (ne bi trebalo da ima efekta)
+        WR <= '1'; CE <= '1'; Din <= 3;
+        wait for 20 ns;
+        WR <= '0';
+        
+        -- Kraj simulacije
+        wait;
+    end process;
+
+end Behavioral;
